@@ -11,8 +11,8 @@ int main() {
   std::cout << "$ ";
   std::unordered_map<std::string, bool> commands;
 
-  std::string command = "";
-  std::cin >> command;
+  std::string command;
+  std::getline(std::cin), command;
   if(!commands.count(command)){
     std::cout << "Invalid command";
   }
