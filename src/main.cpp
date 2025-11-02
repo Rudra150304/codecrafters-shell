@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <sstream>
 
 
 int main() {
@@ -16,6 +17,19 @@ int main() {
     if(command == "exit 0"){
       return 0;
     }
-    std::cout << command << ": command not found" << std::endl;
+    std::istringstream iss(command);
+    std::string cmd;
+    iss >> cmd;
+
+    if(cmd == "echo"){
+      std::string rest;
+      std::getline(iss, rest);
+      if(!rest.empty() && rest[0] == ' ')
+        rest.erase(0, 1);
+      std::cout << rest << std::endl;
+    }
+    else{
+       std::cout << command << ": command not found" << std::endl;
+    }
   }
 }
