@@ -9,13 +9,13 @@ int main() {
 
   // TODO: Uncomment the code below to pass the first stage
   std::string command;
-  if(command == "exit 0"){
-    return 0;
-  }
 
   while(true){
     std::cout << "$ ";
-    std::string command;
+    std::getline(std::cin, command);
+    if(command == "exit 0"){
+      return 0;
+    }
     std::cout << command << ": command not found" << std::endl;
   }
 }
