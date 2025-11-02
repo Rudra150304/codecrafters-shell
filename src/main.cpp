@@ -12,8 +12,8 @@ int main() {
   std::unordered_map<std::string, bool> commands;
 
   std::string command;
-  std::getline(std::cin), command;
+  std::getline(std::cin, command);
   if(!commands.count(command)){
-    std::cout << "Invalid command";
+    std::cout << command << ": command not found" << std::endl;;
   }
 }
