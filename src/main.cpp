@@ -20,16 +20,27 @@ int main() {
     std::istringstream iss(command);
     std::string cmd;
     iss >> cmd;
+    std::string rest;
+    std::getline(iss, rest);
+    if(!rest.empty() && rest[0] == ' ')
+      rest.erase(0, 1);
 
-    if(cmd == "echo"){
-      std::string rest;
-      std::getline(iss, rest);
-      if(!rest.empty() && rest[0] == ' ')
-        rest.erase(0, 1);
+    if(cmd == "echo"){ 
       std::cout << rest << std::endl;
     }
+    else if(cmd == "type"){
+      if(rest == "echo"){
+        std::cout << "echo is a shell builtin" << std::endl; 
+      }
+      else if(rest == "exit"){
+        std::cout << "exit is a shell builtin" << std::endl;
+      }
+      else{
+        std::cout << rest << ": not found" << std::endl;
+      }
+    }
     else{
-       std::cout << command << ": command not found" << std::endl;
+       std::cout << cmd << ": command not found" << std::endl;
     }
   }
 }
