@@ -38,6 +38,9 @@ int main() {
       else if(rest == "exit"){
         std::cout << "exit is a shell builtin" << std::endl;
       }
+      else if(rest == "type"){
+        std::cout << rest << "is a shell builtin" << std::endl;
+      }
       else{
         std::cout << rest << ": not found" << std::endl;
       }
