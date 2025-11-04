@@ -14,6 +14,9 @@ int main() {
   while(true){
     std::cout << "$ ";
     std::getline(std::cin, command);
+    if(command.empty())
+      continue;
+
     if(command == "exit 0"){
       return 0;
     }
