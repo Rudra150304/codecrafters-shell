@@ -80,8 +80,8 @@ int main() {
         else
           std::cout << rest << " is " << pt << std::endl;
       }
+      continue;
     }
-    continue;
 
     std::string prog_path;
     if(cmd.rfind("./", 0) == 0 || cmd.rfind("/", 0) == 0)
