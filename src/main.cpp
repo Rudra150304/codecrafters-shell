@@ -90,7 +90,7 @@ int main() {
      prog_path = find_in_path(cmd);
     
     if(prog_path.empty()){
-      std::cout << cmd << ": not found";
+      std::cout << cmd << ": command  not found" << std::endl;
       continue;
     }
 
