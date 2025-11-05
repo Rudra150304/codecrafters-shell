@@ -1,9 +1,14 @@
+#include <cstddef>
+#include <cstdio>
 #include <iostream>
+#include <sched.h>
 #include <string>
 #include <sstream>
+#include <vector>
 #include <cstdlib>
 #include <filesystem>
 #include <unistd.h>
+#include <sys/wait.h>
 
 namespace fs = std::filesystem;
 
@@ -43,40 +48,67 @@ int main() {
     if(command == "exit 0"){
       return 0;
     }
-    std::istringstream iss(command);
-    std::string cmd;
-    iss >> cmd;
 
-    std::string rest;
-    std::getline(iss, rest);
-    if(!rest.empty() && rest[0] == ' ')
-      rest.erase(0, 1);
+    std::istringstream iss(command);
+    std::vector<std::string> tokens;
+    std::string token;
+    while(iss >> token)
+      tokens.push_back(token);
+    
+    if(tokens.empty())
+      continue;
+
+    std::string cmd = tokens[0];
 
     if(cmd == "echo"){ 
-      std::cout << rest << std::endl;
+      for(size_t i = 1; i < tokens.size(); ++i)
+        std::cout << tokens[i] << (i + 1 < tokens.size() ? " " : "\n");
+      continue;
     }
     else if(cmd == "type"){
-      if(rest == "echo"){
-        std::cout << "echo is a shell builtin" << std::endl; 
-      }
-      else if(rest == "exit"){
-        std::cout << "exit is a shell builtin" << std::endl;
-      }
-      else if(rest == "type"){
-        std::cout << "type is a shell builtin" << std::endl;
-      }
+      if(tokens.size() < 2)
+        continue;
+
+      std::string rest = tokens[1];
+
+      if(rest == "echo" || rest == "exit" || rest == "type")
+        std::cout << rest << " is a shell builtin" << std::endl; 
       else{
         std::string pt = find_in_path(rest);
-        if(pt.empty()){
+        if(pt.empty())
           std::cout << rest << ": not found" << std::endl;
-        }
-        else{
+        else
           std::cout << rest << " is " << pt << std::endl;
-        }
       }
     }
-    else{
-       std::cout << cmd << ": command not found" << std::endl;
+    continue;
+
+    std::string prog_path;
+    if(cmd.rfind("./", 0) == 0 || cmd.rfind("/", 0) == 0)
+      prog_path = cmd;
+    else
+     prog_path = find_in_path(cmd);
+    
+    if(prog_path.empty()){
+      std::cout << cmd << ": not found";
+      continue;
+    }
+
+    pid_t pid = fork();
+    if(pid == 0){
+      std::vector<char*> args;
+      for(auto& s : tokens)
+        args.push_back(s.data());
+      args.push_back(nullptr);
+      execvp(prog_path.c_str(), args.data());
+      perror("execvp");
+      exit(1);
+    }
+    else if(pid > 0){
+      waitpid(pid, nullptr, 0);
+    }
+    else {
+      perror("fork");
     }
   }
-}
+ }
