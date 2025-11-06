@@ -68,6 +68,7 @@ int main() {
     }
     else if(cmd == "pwd"){
       std::cout << fs::current_path() << std::endl;
+      continue;
     }
     else if(cmd == "type"){
       if(tokens.size() < 2)
