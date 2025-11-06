@@ -65,13 +65,16 @@ int main() {
         std::cout << tokens[i] << (i + 1 < tokens.size() ? " " : "\n");
       continue;
     }
+    else if(cmd == "pwd"){
+      std::cout << fs::current_path();
+    }
     else if(cmd == "type"){
       if(tokens.size() < 2)
         continue;
 
       std::string rest = tokens[1];
 
-      if(rest == "echo" || rest == "exit" || rest == "type")
+      if(rest == "echo" || rest == "exit" || rest == "type" || rest == "pwd")
         std::cout << rest << " is a shell builtin" << std::endl; 
       else{
         std::string pt = find_in_path(rest);
