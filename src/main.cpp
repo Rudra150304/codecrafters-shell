@@ -67,7 +67,7 @@ int main() {
       continue;
     }
     else if(cmd == "pwd"){
-      std::cout << fs::current_path() << std::endl;
+      std::cout << fs::current_path().string() << std::endl;
       continue;
     }
     else if(cmd == "type"){
