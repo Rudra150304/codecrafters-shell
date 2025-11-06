@@ -1,6 +1,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <iostream>
+#include <ostream>
 #include <sched.h>
 #include <string>
 #include <sstream>
@@ -66,7 +67,7 @@ int main() {
       continue;
     }
     else if(cmd == "pwd"){
-      std::cout << fs::current_path();
+      std::cout << fs::current_path() << std::endl;
     }
     else if(cmd == "type"){
       if(tokens.size() < 2)
