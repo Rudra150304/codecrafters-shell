@@ -96,6 +96,19 @@ int main() {
         continue;
       }
 
+      if(in_double_quotes && c == '\\'){
+        if(i + 1 < command.size()){
+          char next = command[i + 1];
+          if(next =='"' || next == '\\'){
+            current.push_back(next);
+            ++i;
+            continue;
+          }
+        }
+        current.push_back('\\');
+        continue;
+      }
+
       if(in_single_quotes || in_double_quotes){
         current.push_back(c);
       }
