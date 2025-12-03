@@ -46,7 +46,7 @@ int main() {
     if(command.empty())
       continue;
 
-    if(command == "exit 0"){
+    if(command == "exit"){
       return 0;
     }
 
