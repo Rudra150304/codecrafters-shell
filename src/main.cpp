@@ -77,6 +77,17 @@ int main() {
 
       const std::string& path = tokens[1];
 
+      if(path == "~"){
+        const char* home = std::getenv("HOME");
+        if(home){
+          chdir(home);
+        }
+        else{
+          std::cout << "cd: HOME not set" << std::endl;
+        }
+        continue;
+      }
+
       if(path.size() > 0 && path[0] == '/'){
         if(chdir(path.c_str()) != 0){
           std::cout << "cd: " << path << ": No such file or directory" << std::endl;
