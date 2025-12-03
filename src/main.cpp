@@ -70,13 +70,27 @@ int main() {
       std::cout << fs::current_path().string() << std::endl;
       continue;
     }
+    else if(cmd == "cd"){
+      if(tokens.size() < 2){
+        continue;
+      }
+
+      const std::string& path = tokens[1];
+
+      if(path.size() > 0 && path[0] == '/'){
+        if(chdir(path.c_str()) != 0){
+          std::cout << "cd: " << path << ": No such file or directory" << std::endl;
+        }
+      }
+      else{}
+    }
     else if(cmd == "type"){
       if(tokens.size() < 2)
         continue;
 
       std::string rest = tokens[1];
 
-      if(rest == "echo" || rest == "exit" || rest == "type" || rest == "pwd")
+      if(rest == "echo" || rest == "exit" || rest == "type" || rest == "pwd" || rest == "cd")
         std::cout << rest << " is a shell builtin" << std::endl; 
       else{
         std::string pt = find_in_path(rest);
