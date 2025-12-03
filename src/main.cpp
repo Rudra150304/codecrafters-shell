@@ -1,3 +1,4 @@
+#include <cctype>
 #include <cstddef>
 #include <cstdio>
 #include <iostream>
@@ -58,12 +59,32 @@ int main() {
     for(size_t i = 0; i < command.size(); i++){
       char c = command[i];
 
-      if(c == '\''){
-        in_single_quotes = !in_single_quotes;
+      if(c == '\'' && !in_double_quotes){
+        if (in_single_quotes){
+          in_single_quotes = false;
+          size_t next_i = i + 1;
+          if(next_i >= command.size() || std::isspace(static_cast<unsigned char>(command[next_i]))){
+            tokens.push_back(current);
+            current.clear();
+          }
+        }
+        else{
+          in_single_quotes = true;
+        }
         continue;
       }
-      else if(c == '"'){
-        in_double_quotes = !in_double_quotes;
+      else if(c == '"' && !in_single_quotes){
+        if(in_double_quotes){
+          in_double_quotes = false;
+          size_t next_i = i + 1;
+          if(next_i >= command.size() || std::isspace(static_cast<unsigned char>(command[next_i]))){
+            tokens.push_back(current);
+            current.clear();
+          }
+        }
+        else{
+          in_double_quotes = true;
+        }
         continue;
       }
 
@@ -71,7 +92,7 @@ int main() {
         current.push_back(c);
       }
       else{
-        if(std::isspace(c)){
+        if(std::isspace(static_cast<unsigned char>(c))){
           if(!current.empty()){
             tokens.push_back(current);
             current.clear();
@@ -81,6 +102,8 @@ int main() {
         current.push_back(c);
       }
     }
+    tokens.push_back(current);
+    if(!tokens.empty() && tokens.back().empty()){}
 
     if(!current.empty())
       tokens.push_back(current);
