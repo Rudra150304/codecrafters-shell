@@ -59,6 +59,14 @@ int main() {
     for(size_t i = 0; i < command.size(); i++){
       char c = command[i];
 
+    if(!in_single_quotes && !in_double_quotes && c =='\\'){
+        if(i + 1 < command.size()){
+          current.push_back(command[i + 1]);
+          i++;
+        }
+        continue;
+      }
+
       if(c == '\'' && !in_double_quotes){
         if (in_single_quotes){
           in_single_quotes = false;
