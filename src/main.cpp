@@ -83,7 +83,13 @@ int main() {
         }
       }
       else{
+        fs::path target = fs::current_path() / path;
 
+        fs::path normalized = fs::weakly_canonical(target);
+
+        if(chdir(normalized.c_str()) != 0){
+          std::cout << "cd: " << path << ": No such file or directory" << std::endl
+        }
       }
       continue;
     }
