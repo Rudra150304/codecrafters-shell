@@ -88,7 +88,7 @@ int main() {
         fs::path normalized = fs::weakly_canonical(target);
 
         if(chdir(normalized.c_str()) != 0){
-          std::cout << "cd: " << path << ": No such file or directory" << std::endl
+          std::cout << "cd: " << path << ": No such file or directory" << std::endl;
         }
       }
       continue;
