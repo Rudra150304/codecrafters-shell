@@ -102,7 +102,7 @@ int main() {
         current.push_back(c);
       }
     }
-    tokens.push_back(current);
+
     if(!tokens.empty() && tokens.back().empty()){}
 
     if(!current.empty())
