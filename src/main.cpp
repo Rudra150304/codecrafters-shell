@@ -50,12 +50,36 @@ int main() {
       return 0;
     }
 
-    std::istringstream iss(command);
     std::vector<std::string> tokens;
-    std::string token;
-    while(iss >> token)
-      tokens.push_back(token);
-    
+    std::string current;
+    bool in_single_quotes = false;
+
+    for(size_t i = 0; i < command.size(); i++){
+      char c = command[i];
+
+      if(c == '\''){
+        in_single_quotes = ! in_single_quotes;
+        continue;
+      }
+
+      if(in_single_quotes){
+        current.push_back(c);
+      }
+      else{
+        if(std::isspace(c)){
+          if(!current.empty()){
+            tokens.push_back(current);
+            current.clear();
+          }
+          continue;
+        }
+        current.push_back(c);
+      }
+    }
+
+    if(!current.empty())
+      tokens.push_back(current);
+
     if(tokens.empty())
       continue;
 
