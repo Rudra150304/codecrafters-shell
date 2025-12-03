@@ -53,16 +53,21 @@ int main() {
     std::vector<std::string> tokens;
     std::string current;
     bool in_single_quotes = false;
+    bool in_double_quotes = false;
 
     for(size_t i = 0; i < command.size(); i++){
       char c = command[i];
 
       if(c == '\''){
-        in_single_quotes = ! in_single_quotes;
+        in_single_quotes = !in_single_quotes;
+        continue;
+      }
+      else if(c == '"'){
+        in_double_quotes = !in_double_quotes;
         continue;
       }
 
-      if(in_single_quotes){
+      if(in_single_quotes || in_double_quotes){
         current.push_back(c);
       }
       else{
