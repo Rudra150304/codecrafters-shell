@@ -82,7 +82,10 @@ int main() {
           std::cout << "cd: " << path << ": No such file or directory" << std::endl;
         }
       }
-      else{}
+      else{
+
+      }
+      continue;
     }
     else if(cmd == "type"){
       if(tokens.size() < 2)
