@@ -1,4 +1,5 @@
 #include <cctype>
+#include <cmath>
 #include <cstddef>
 #include <cstdio>
 #include <iostream>
@@ -78,6 +79,7 @@ int main() {
         }
         continue;
       }
+
       else if(c == '"' && !in_single_quotes){
         if(in_double_quotes){
           in_double_quotes = false;
@@ -123,7 +125,9 @@ int main() {
       continue;
     
     std::string outfile;
+    std::string errfile;
     bool redirect = false;
+    bool redirect_err = false;
 
     for(std::size_t i = 0; i < tokens.size(); ++i){
       if(tokens[i] == ">" || tokens[i] == "1>"){
@@ -134,6 +138,15 @@ int main() {
         outfile = tokens[i + 1];
         redirect = true;
         tokens.erase(tokens.begin() + i, tokens.begin() + i + 2);
+        break;
+      }
+
+      if(tokens[i] == "2>"){
+        if(i + 1 < tokens.size()){
+          errfile = tokens[i + 1];
+          redirect_err = true;
+          tokens.erase(tokens.begin() + i,tokens.begin() + i + 2);
+        }
         break;
       }
 
@@ -150,10 +163,20 @@ int main() {
         tokens.erase(tokens.begin() + i);
         break;
       }
+
+      if(tokens[i].rfind("2>", 0) == 0 && tokens[i].size() > 2){
+        errfile = tokens[i].substr(2);
+        redirect_err = true;
+        tokens.erase(tokens.begin() + i);
+        break;
+      }
     }
 
     int saved_stdout = -1;
     int fd = -1;
+    int saved_stderr = -1;
+    int errfd = -1;
+    
     if(redirect){
       fd = open(outfile.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
       if(fd < 0){
@@ -162,6 +185,16 @@ int main() {
       }
       saved_stdout = dup(STDOUT_FILENO);
       dup2(fd, STDOUT_FILENO);
+    }
+
+    if(redirect_err){
+      errfd = open(errfile.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
+      if(errfd < 0){
+        perror("open");
+        continue;
+      }
+      saved_stderr = dup(STDERR_FILENO);
+      dup2(errfd, STDERR_FILENO);
     }
 
     std::string cmd = tokens[0];
@@ -175,8 +208,15 @@ int main() {
         close(saved_stdout);
         close(fd);
       }
+
+      if(redirect_err){
+        dup2(saved_stderr, STDERR_FILENO);
+        close(saved_stderr);
+        close(errfd);
+      }
       continue;
     }
+
     else if(cmd == "pwd"){
       std::cout << fs::current_path().string() << std::endl;
 
@@ -184,6 +224,12 @@ int main() {
         dup2(saved_stdout, STDOUT_FILENO);
         close(saved_stdout);
         close(fd);
+      }
+
+      if(redirect_err){
+        dup2(saved_stderr, STDERR_FILENO);
+        close(saved_stderr);
+        close(errfd);
       }
       continue;
     }
@@ -225,8 +271,15 @@ int main() {
         close(fd);
       }
 
+      if(redirect_err){
+        dup2(saved_stderr, STDERR_FILENO);
+        close(saved_stderr);
+        close(errfd);
+      }
+
       continue;
     }
+
     else if(cmd == "type"){
       if(tokens.size() < 2)
         continue;
@@ -248,6 +301,13 @@ int main() {
         close(saved_stdout);
         close(fd);
       }
+
+      if(redirect_err){
+        dup2(saved_stderr, STDERR_FILENO);
+        close(saved_stderr);
+        close(errfd);
+      }
+
       continue;
     }
 
@@ -265,10 +325,18 @@ int main() {
         close(saved_stdout);
         close(fd);
       }
+
+      if(redirect_err){
+        dup2(saved_stderr, STDERR_FILENO);
+        close(saved_stderr);
+        close(errfd);
+      }
+
       continue;
     }
 
     pid_t pid = fork();
+
     if(pid == 0){
       std::vector<char*> args;
       for(auto& s : tokens)
@@ -284,13 +352,25 @@ int main() {
         dup2(fd2, STDOUT_FILENO);
         close(fd2);
       }
+
+      if(redirect_err){
+        int errfd = open(errfile.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        if(errfd < 0){
+          perror("open");
+          exit(1);
+        }
+        dup2(errfd, STDERR_FILENO);
+        close(errfd);
+      }
       execvp(prog_path.c_str(), args.data());
       perror("execvp");
       exit(1);
     }
+
     else if(pid > 0){
       waitpid(pid, nullptr, 0);
     }
+
     else {
       perror("fork");
     }
