@@ -1,5 +1,6 @@
 #include <cctype>
 #include <cmath>
+#include <csignal>
 #include <cstddef>
 #include <cstdio>
 #include <iostream>
@@ -126,8 +127,10 @@ int main() {
     
     std::string outfile;
     std::string errfile;
+    std::string appendfile;
     bool redirect = false;
     bool redirect_err = false;
+    bool append_redirect = false;
 
     for(std::size_t i = 0; i < tokens.size(); ++i){
       if(tokens[i] == ">" || tokens[i] == "1>"){
@@ -146,6 +149,15 @@ int main() {
           errfile = tokens[i + 1];
           redirect_err = true;
           tokens.erase(tokens.begin() + i,tokens.begin() + i + 2);
+        }
+        break;
+      }
+
+      if(tokens[i] == ">>" || tokens[i] == "1>>"){
+        if(i + 1 < tokens.size()){
+          appendfile = tokens[i + 1];
+          append_redirect = true;
+          tokens.erase(tokens.begin() + i, tokens.begin() + i + 2);
         }
         break;
       }
@@ -170,12 +182,28 @@ int main() {
         tokens.erase(tokens.begin() + i);
         break;
       }
+
+      if(tokens[i].rfind("1>>", 0) == 0 && tokens[i].size() > 3){
+        appendfile = tokens[i].substr(3);
+        append_redirect = true;
+        tokens.erase(tokens.begin() + i);
+        break;
+      }
+
+      if(tokens[i].rfind(">>", 0) == 0 && tokens[i].size() > 2){
+        appendfile = tokens[i].substr(2);
+        append_redirect = true;
+        tokens.erase(tokens.begin() + i);
+        break;
+      }
     }
 
     int saved_stdout = -1;
     int fd = -1;
     int saved_stderr = -1;
     int errfd = -1;
+    int saved_stdout_append = -1;
+    int fd_append = -1;
     
     if(redirect){
       fd = open(outfile.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
@@ -197,6 +225,16 @@ int main() {
       dup2(errfd, STDERR_FILENO);
     }
 
+    if(append_redirect){
+      fd_append = open(appendfile.c_str(), O_WRONLY | O_CREAT |  O_APPEND, 0666);
+      if(fd_append < 0){
+        perror("open");
+        continue;
+      }
+      saved_stdout_append = dup(STDOUT_FILENO);
+      dup2(fd_append, STDERR_FILENO);
+    }
+
     std::string cmd = tokens[0];
 
     if(cmd == "echo"){ 
@@ -214,6 +252,13 @@ int main() {
         close(saved_stderr);
         close(errfd);
       }
+
+      if(append_redirect){
+        dup2(saved_stdout_append, STDOUT_FILENO);
+        close(saved_stdout_append);
+        close(fd_append);
+      }
+
       continue;
     }
 
@@ -231,6 +276,13 @@ int main() {
         close(saved_stderr);
         close(errfd);
       }
+
+      if(append_redirect){
+        dup2(saved_stdout_append, STDOUT_FILENO);
+        close(saved_stdout_append);
+        close(fd_append);
+      }
+
       continue;
     }
 
@@ -256,6 +308,7 @@ int main() {
           std::cout << "cd: " << path << ": No such file or directory" << std::endl;
         }
       }
+
       else{
         fs::path target = fs::current_path() / path;
 
@@ -265,6 +318,7 @@ int main() {
           std::cout << "cd: " << path << ": No such file or directory" << std::endl;
         }
       }
+
       if(redirect){
         dup2(saved_stdout, STDOUT_FILENO);
         close(saved_stdout);
@@ -275,6 +329,12 @@ int main() {
         dup2(saved_stderr, STDERR_FILENO);
         close(saved_stderr);
         close(errfd);
+      }
+
+      if(append_redirect){
+        dup2(saved_stdout_append, STDOUT_FILENO);
+        close(saved_stdout_append);
+        close(fd_append);
       }
 
       continue;
@@ -308,6 +368,12 @@ int main() {
         close(errfd);
       }
 
+      if(append_redirect){
+        dup2(saved_stdout_append, STDOUT_FILENO);
+        close(saved_stdout_append);
+        close(fd_append);
+      }
+
       continue;
     }
 
@@ -330,6 +396,16 @@ int main() {
         dup2(saved_stderr, STDERR_FILENO);
         close(saved_stderr);
         close(errfd);
+      }
+
+      if(append_redirect){
+        int fd = open(appendfile.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0666);
+        if(fd < 0){
+          perror("open");
+          exit(1);
+        }
+        dup2(fd, STDOUT_FILENO);
+        close(fd);
       }
 
       continue;
@@ -365,6 +441,17 @@ int main() {
       execvp(prog_path.c_str(), args.data());
       perror("execvp");
       exit(1);
+    }
+
+    if(append_redirect){
+      int fd = open(appendfile.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0666);
+      if(fd < 0){
+        perror("open");
+        exit(1);
+      }
+      dup2(fd, STDOUT_FILENO);
+      close(fd);
+
     }
 
     else if(pid > 0){
