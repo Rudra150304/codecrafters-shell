@@ -61,7 +61,7 @@ int main() {
     for(size_t i = 0; i < command.size(); i++){
       char c = command[i];
 
-    if(!in_single_quotes && !in_double_quotes && c =='\\'){
+      if(!in_single_quotes && !in_double_quotes && c =='\\'){
         if(i + 1 < command.size()){
           current.push_back(command[i + 1]);
           i++;
@@ -70,9 +70,8 @@ int main() {
       }
 
       if(c == '\'' && !in_double_quotes){
-        if (in_single_quotes){
+        if(in_single_quotes){
           in_single_quotes = false;
-          continue;
         }
         else{
           in_single_quotes = true;
@@ -82,7 +81,6 @@ int main() {
       else if(c == '"' && !in_single_quotes){
         if(in_double_quotes){
           in_double_quotes = false;
-          continue;
         }
         else{
           in_double_quotes = true;
@@ -129,12 +127,13 @@ int main() {
 
     for(std::size_t i = 0; i < tokens.size(); ++i){
       if(tokens[i] == ">" || tokens[i] == "1>"){
-        if(i + 1 < tokens.size()){
-          outfile = tokens[i + 1];
-          redirect = true;
-
-          tokens.erase(tokens.begin() + i, tokens.begin() + i + 2);
+        if(i + 1 >= tokens.size()){
+          redirect = false;
+          break;
         }
+        outfile = tokens[i + 1];
+        redirect = true;
+        tokens.erase(tokens.begin() + i, tokens.begin() + i + 2);
         break;
       }
 
@@ -170,6 +169,7 @@ int main() {
     if(cmd == "echo"){ 
       for(size_t i = 1; i < tokens.size(); ++i)
         std::cout << tokens[i] << (i + 1 < tokens.size() ? " " : "\n");
+
       if(redirect){
         dup2(saved_stdout, STDOUT_FILENO);
         close(saved_stdout);
@@ -179,6 +179,7 @@ int main() {
     }
     else if(cmd == "pwd"){
       std::cout << fs::current_path().string() << std::endl;
+
       if(redirect){
         dup2(saved_stdout, STDOUT_FILENO);
         close(saved_stdout);
@@ -202,10 +203,9 @@ int main() {
         else{
           std::cout << "cd: HOME not set" << std::endl;
         }
-        continue;
       }
 
-      if(path.size() > 0 && path[0] == '/'){
+      else if(path.size() > 0 && path[0] == '/'){
         if(chdir(path.c_str()) != 0){
           std::cout << "cd: " << path << ": No such file or directory" << std::endl;
         }
@@ -242,6 +242,7 @@ int main() {
         else
           std::cout << rest << " is " << pt << std::endl;
       }
+
       if(redirect){
         dup2(saved_stdout, STDOUT_FILENO);
         close(saved_stdout);
@@ -273,14 +274,15 @@ int main() {
       for(auto& s : tokens)
         args.push_back(const_cast<char*>(s.c_str()));
       args.push_back(nullptr);
+
       if(redirect){
-        int fd = open(outfile.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
-        if(fd < 0){
+        int fd2 = open(outfile.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        if(fd2 < 0){
           perror("open");
           exit(1);
         }
-        dup2(fd, STDOUT_FILENO);
-        close(fd);
+        dup2(fd2, STDOUT_FILENO);
+        close(fd2);
       }
       execvp(prog_path.c_str(), args.data());
       perror("execvp");
@@ -291,6 +293,12 @@ int main() {
     }
     else {
       perror("fork");
+    }
+
+    if(redirect){
+      dup2(saved_stdout, STDOUT_FILENO);
+      close(saved_stdout);
+      close(fd);
     }
   }
  }
