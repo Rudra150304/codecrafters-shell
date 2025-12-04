@@ -232,7 +232,7 @@ int main() {
         continue;
       }
       saved_stdout_append = dup(STDOUT_FILENO);
-      dup2(fd_append, STDERR_FILENO);
+      dup2(fd_append, STDOUT_FILENO);
     }
 
     std::string cmd = tokens[0];
@@ -438,21 +438,22 @@ int main() {
         dup2(errfd, STDERR_FILENO);
         close(errfd);
       }
+
+      if(append_redirect){
+        int fd = open(appendfile.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0666);
+        if(fd < 0){
+          perror("open");
+          exit(1);
+        }
+        dup2(fd, STDOUT_FILENO);
+        close(fd);
+      }
       execvp(prog_path.c_str(), args.data());
       perror("execvp");
       exit(1);
     }
 
-    if(append_redirect){
-      int fd = open(appendfile.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0666);
-      if(fd < 0){
-        perror("open");
-        exit(1);
-      }
-      dup2(fd, STDOUT_FILENO);
-      close(fd);
-
-    }
+   
 
     else if(pid > 0){
       waitpid(pid, nullptr, 0);
