@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <iostream>
+#include <iterator>
 #include <ostream>
 #include <sched.h>
 #include <string>
@@ -11,6 +12,7 @@
 #include <filesystem>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 
 namespace fs = std::filesystem;
 
@@ -124,25 +126,75 @@ int main() {
       }
     }
 
-    if(!tokens.empty() && tokens.back().empty()){}
-
     if(!current.empty())
       tokens.push_back(current);
 
     if(tokens.empty())
       continue;
+    
+    std::string outfile;
+    bool redirect = false;
+
+    for(std::size_t i = 0; i < tokens.size(); ++i){
+      if(tokens[i] == ">" || tokens[i] == "1>"){
+        if(i + 1 < tokens.size()){
+          outfile = tokens[i + 1];
+          redirect = true;
+
+          tokens.erase(tokens.begin() + i, tokens.begin() + i + 2);
+        }
+        break;
+      }
+
+      if(tokens[i].rfind("1>", 0) == 0 && tokens[i].size() > 2){
+        outfile = tokens[i].substr(2);
+        redirect = true;
+        tokens.erase(tokens.begin() + i);
+        break;
+      }
+
+      if(tokens[i].rfind(">", 0) == 0 && tokens[i].size() > 1){
+        outfile = tokens[i].substr(1);
+        redirect = true;
+        tokens.erase(tokens.begin() + i);
+        break;
+      }
+    }
+
+    int saved_stdout = -1;
+    int fd = -1;
+    if(redirect){
+      fd = open(outfile.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
+      if(fd < 0){
+        perror("open");
+        continue;
+      }
+      saved_stdout = dup(STDOUT_FILENO);
+      dup2(fd, STDOUT_FILENO);
+    }
 
     std::string cmd = tokens[0];
 
     if(cmd == "echo"){ 
       for(size_t i = 1; i < tokens.size(); ++i)
         std::cout << tokens[i] << (i + 1 < tokens.size() ? " " : "\n");
+      if(redirect){
+        dup2(saved_stdout, STDOUT_FILENO);
+        close(saved_stdout);
+        close(fd);
+      }
       continue;
     }
     else if(cmd == "pwd"){
       std::cout << fs::current_path().string() << std::endl;
+      if(redirect){
+        dup2(saved_stdout, STDOUT_FILENO);
+        close(saved_stdout);
+        close(fd);
+      }
       continue;
     }
+
     else if(cmd == "cd"){
       if(tokens.size() < 2){
         continue;
@@ -175,6 +227,12 @@ int main() {
           std::cout << "cd: " << path << ": No such file or directory" << std::endl;
         }
       }
+      if(redirect){
+        dup2(saved_stdout, STDOUT_FILENO);
+        close(saved_stdout);
+        close(fd);
+      }
+
       continue;
     }
     else if(cmd == "type"){
@@ -192,6 +250,11 @@ int main() {
         else
           std::cout << rest << " is " << pt << std::endl;
       }
+      if(redirect){
+        dup2(saved_stdout, STDOUT_FILENO);
+        close(saved_stdout);
+        close(fd);
+      }
       continue;
     }
 
@@ -203,6 +266,12 @@ int main() {
     
     if(prog_path.empty()){
       std::cout << cmd << ": command not found" << std::endl;
+
+      if(redirect){
+        dup2(saved_stdout, STDOUT_FILENO);
+        close(saved_stdout);
+        close(fd);
+      }
       continue;
     }
 
@@ -210,8 +279,17 @@ int main() {
     if(pid == 0){
       std::vector<char*> args;
       for(auto& s : tokens)
-        args.push_back(s.data());
+        args.push_back(const_cast<char*>(s.c_str()));
       args.push_back(nullptr);
+      if(redirect){
+        int fd = open(outfile.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        if(fd < 0){
+          perror("open");
+          exit(1);
+        }
+        dup2(fd, STDOUT_FILENO);
+        close(fd);
+      }
       execvp(prog_path.c_str(), args.data());
       perror("execvp");
       exit(1);
