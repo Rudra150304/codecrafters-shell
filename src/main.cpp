@@ -72,11 +72,7 @@ int main() {
       if(c == '\'' && !in_double_quotes){
         if (in_single_quotes){
           in_single_quotes = false;
-          size_t next_i = i + 1;
-          if(next_i >= command.size() || std::isspace(static_cast<unsigned char>(command[next_i]))){
-            tokens.push_back(current);
-            current.clear();
-          }
+          continue;
         }
         else{
           in_single_quotes = true;
@@ -86,11 +82,7 @@ int main() {
       else if(c == '"' && !in_single_quotes){
         if(in_double_quotes){
           in_double_quotes = false;
-          size_t next_i = i + 1;
-          if(next_i >= command.size() || std::isspace(static_cast<unsigned char>(command[next_i]))){
-            tokens.push_back(current);
-            current.clear();
-          }
+          continue;
         }
         else{
           in_double_quotes = true;
