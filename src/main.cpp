@@ -11,6 +11,7 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <strings.h>
 #include <vector>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -127,12 +128,71 @@ char* builtin_generator(const char* text, int state){
   return nullptr;
 }
 
-char** completion_callback(const char* text, int start, int end){
-  //Only autocomplete the first word
-  if(start == 0)
-    return rl_completion_matches(text, builtin_generator);
+char* executable_generator(const char* text, int state){
+  static std::vector<std::string> executables;
+  static size_t index;
+
+  if(state == 0){
+    executables.clear();
+    index = 0;
+
+    const char* path_env = std::getenv("PATH");
+    if(!path_env)
+      return nullptr;
+
+    std::istringstream ss(path_env);
+    std::string dir;
+
+    while(std::getline(ss, dir, ':')){
+      fs::path p(dir);
+      if(!fs::exists(p) || !fs::is_directory(p))
+        continue;
+
+      for(const auto& entry : fs::directory_iterator(p)){
+        if(!entry.is_regular_file())
+          continue;
+
+        //must be executable
+        if(access(entry.path().c_str(), X_OK) != 0)
+          continue;
+
+        std::string name = entry.path().filename().string();
+
+        if(name.rfind(text, 0) == 0) //Starts with "text"
+          executables.push_back(name);
+      }
+    }
+  }
+
+  if(index < executables.size())
+    return strdup(executables[index++].c_str());
 
   return nullptr;
+}
+
+char** completion_callback(const char* text, int start, int end){
+  (void)end; //Silence unused variable warning
+  
+  //We only autocomplete the first token (command name)
+  if(start != 0)
+    return nullptr;
+  
+  //Combine builtin and executable genrators
+  //rl_completion_matches handles merging automatically
+  return rl_completion_matches(text, [](const char* t, int state) -> char* {
+    static int phase = 0;
+
+    //Phase 0 -> builtins
+    if(phase == 0){
+      char* res = builtin_generator(t, state);
+      if(res)
+        return res;
+      phase = 1;
+      state = 0; // rest for executables
+    }
+    //Phase 1 -> executables
+    return executable_generator(t, state);
+  });
 }
 
 int main(){
@@ -140,6 +200,7 @@ int main(){
   std::cerr << std::unitbuf;
 
   rl_attempted_completion_function = completion_callback;
+  rl_blind_key('\t', rl_complete);
 
   std::string command;
   while (true){
