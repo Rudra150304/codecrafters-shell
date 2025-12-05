@@ -200,7 +200,7 @@ int main(){
   std::cerr << std::unitbuf;
 
   rl_attempted_completion_function = completion_callback;
-  rl_blind_key('\t', rl_complete);
+  rl_bind_key('\t', rl_complete);
 
   std::string command;
   while (true){
