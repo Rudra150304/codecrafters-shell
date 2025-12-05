@@ -321,15 +321,14 @@ int main(){
         }
         else if(!path.empty() && path[0] == '/'){
           //absolute path
-          if(chdir(path.c_str()) != 0){
+          if(chdir(path.c_str()) != 0)
             std::cout << "cd: " << path << ": No such file or directory" << std::endl;
-          }
-          else{
-            //relative path
-            fs::path target = fs::current_path() / path;
-            if(chdir(target.c_str()) != 0)
-              std::cout << "cd: " << path << "No such file or directory" << std::endl;
-          }
+        }
+        else{
+          //relative path
+          fs::path target = fs::current_path() / path;
+          if(chdir(target.c_str()) != 0)
+            std::cout << "cd: " << path << ": No such file or directory" << std::endl;
         }
       }
 
