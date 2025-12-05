@@ -14,6 +14,8 @@
 #include <vector>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <readline/readline.h>
+#include <readline/history.h>
 
 namespace fs = std::filesystem;
 
@@ -115,11 +117,12 @@ int main(){
 
   std::string command;
   while (true){
-    std::cout << "$ ";
-    if(!std::getline(std::cin, command))
+    char* input = readline("$ ");
+
+    if(!input)
       break;
-    if(command.empty())
-      continue;
+    
+    if(strlcat(char *__restrict dest, const char *__restrict src, size_t n))
 
     //exit builtin
     if(command == "exit" || command == "exit 0"){
