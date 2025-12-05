@@ -8,6 +8,7 @@
 #include <ios>
 #include <iostream>
 #include <iterator>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -132,13 +133,25 @@ int main(){
 
     //Parse redirections: prefer longer operators (>>/1>> then >/1> then 2>)
     //We'll support exact operator tokens and attached forms like ">>file" or "1>file"
-    std::string outfile, appendfile, errfile;
+    std::string outfile, appendfile, errfile, appenderrfile;
     bool redirect = false;
     bool append_redirect = false;
     bool redirect_err = false;
+    bool append_redirect_err = false;
 
     for(size_t i = 0; i < tokens.size(); ++i){
       const std::string &t = tokens[i];
+
+      //exact 2>>
+      if(t == "2>>"){
+        if(i + 1 >= tokens.size()){
+          break;
+        }
+        appenderrfile = tokens[i + 1];
+        append_redirect_err = true;
+        tokens.erase(tokens.begin() + i, tokens.begin() + i + 2);
+        break;
+      }
 
       //exact >> or 1>>
       if(t == ">>" || t == "1>>"){
@@ -173,7 +186,13 @@ int main(){
         break;
       }
 
-      //Attached forms: check 1>> then >> then 2> then 1> then >
+      //Attached forms: check 2>> then 1>> then >> then 2> then 1> then >
+      if(t.rfind("2>>", 0) == 0 && t.size() > 3){
+        appenderrfile = t.substr(3);
+        append_redirect_err = true;
+        tokens.erase(tokens.begin() + i);
+        break;
+      } 
       if(t.rfind("1>>", 0) == 0 && t.size() > 3){
         appendfile = t.substr(3);
         append_redirect = true;
@@ -198,6 +217,12 @@ int main(){
         tokens.erase(tokens.begin() + i);
         break;
       }
+      if(t.rfind(">", 0) == 0 && t.size() > 2){
+        outfile = t.substr(1);
+        redirect = true;
+        tokens.erase(tokens.begin() + i);
+        break;
+      }
     } //End parse
     
     //If tokens became empty after removing redirection tokens, skip
@@ -217,6 +242,7 @@ int main(){
     int saved_stdout = -1, fd_out = -1;
     int saved_stderr = -1, fd_err = -1;
     int saved_stdout_append = -1, fd_append = -1;
+    int saved_stderr_append = -1, fd_err_append = -1; 
 
     if(builtin){
       //stdout overwrite
@@ -241,7 +267,7 @@ int main(){
         dup2(fd_append, STDOUT_FILENO);
       }
 
-      //stdout redirect
+      //stdout redirect 
       if(redirect_err){
         fd_err = open(errfile.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if(fd_err < 0){
@@ -250,6 +276,17 @@ int main(){
         }
         saved_stderr = dup(STDERR_FILENO);
         dup2(fd_err, STDERR_FILENO);
+      }
+
+      //stderr overwrite
+      if(append_redirect_err){
+        fd_err_append = open(appenderrfile.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0666);
+        if(fd_err_append < 0){
+          perror("open");
+          goto builtin_cleanup;
+        }
+        saved_stderr_append = dup(STDERR_FILENO);
+        dup2(fd_err_append, STDERR_FILENO);
       }
     }
 
@@ -279,6 +316,12 @@ int main(){
         close(fd_err);
         saved_stderr = -1;
       }
+      if(append_redirect_err && saved_stderr_append != -1){
+        dup2(saved_stderr_append, STDERR_FILENO);
+        close(saved_stderr_append);
+        close(fd_err_append);
+        saved_stderr_append = -1;
+      }
       continue;
     }
 
@@ -302,6 +345,12 @@ int main(){
         close(saved_stderr);
         close(fd_err);
         saved_stderr = -1;
+      }
+      if(append_redirect_err && saved_stderr_append != -1){
+        dup2(saved_stderr_append, STDERR_FILENO);
+        close(saved_stderr_append);
+        close(fd_err_append);
+        saved_stderr_append = -1;
       }
       continue;
     }
@@ -351,6 +400,12 @@ int main(){
         close(fd_err);
         saved_stderr = -1;
       }
+      if(append_redirect_err && saved_stderr_append != -1){
+        dup2(saved_stderr_append, STDERR_FILENO);
+        close(saved_stderr_append);
+        close(fd_err_append);
+        saved_stderr_append = -1;
+      }
       continue;
     }
 
@@ -391,6 +446,12 @@ int main(){
         close(fd_err);
         saved_stderr = -1;
       }
+      if(append_redirect_err && saved_stderr_append != -1){
+        dup2(saved_stderr_append, STDERR_FILENO);
+        close(saved_stderr_append);
+        close(fd_err_append);
+        saved_stderr_append = -1;
+      }
       continue;
     }
 
@@ -430,6 +491,15 @@ int main(){
       }
       if(redirect_err){
         int fd2 = open(errfile.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0666);
+        if(fd2 < 0){
+          perror("open");
+          exit(1);
+        }
+        dup2(fd2, STDERR_FILENO);
+        close(fd2);
+      }
+      if(append_redirect_err){
+        int fd2 = open(appenderrfile.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0666);
         if(fd2 < 0){
           perror("open");
           exit(1);
