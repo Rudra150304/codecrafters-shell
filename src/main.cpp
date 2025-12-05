@@ -114,7 +114,7 @@ int main(){
 
   std::string command;
   while (true){
-    std::cout << "$";
+    std::cout << "$ ";
     if(!std::getline(std::cin, command))
       break;
     if(command.empty())
