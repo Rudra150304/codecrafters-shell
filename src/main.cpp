@@ -111,18 +111,52 @@ std::vector<std::string> tokenize(const std::string& command){
   return tokens;
 }
 
+char* builtin_generator(const char* text, int state){
+  static int idx;
+  static const char* builtins[] = {"echo", "exit", nullptr};
+
+  if(state == 0)
+    idx = 0;
+
+  while(builtins[idx]){
+    const char* cmd = builtins[idx];
+    idx++;
+    if(strncmp(cmd, text, strlen(text)) == 0)
+      return strdup(cmd);
+  }
+  return nullptr;
+}
+
+char** completion_callback(const char* text, int start, int end){
+  //Only autocomplete the first word
+  if(start == 0)
+    return rl_completion_matches(text, builtin_generator);
+
+  return nullptr;
+}
+
 int main(){
   std::cout << std::unitbuf;
   std::cerr << std::unitbuf;
+
+  rl_attempted_completion_function = completion_callback;
 
   std::string command;
   while (true){
     char* input = readline("$ ");
 
-    if(!input)
+    if(!input) //Ctrl+D or EOF
       break;
     
-    if(strlcat(char *__restrict dest, const char *__restrict src, size_t n))
+    if(strlen(input) == 0){
+      free(input);
+      continue;
+    }
+
+    add_history(input);
+
+    std::string command(input);
+    free(input);
 
     //exit builtin
     if(command == "exit" || command == "exit 0"){
