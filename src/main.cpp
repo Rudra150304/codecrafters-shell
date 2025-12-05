@@ -312,6 +312,7 @@ int main(){
       else{
         const std::string &path = tokens[1];
         if(path == "~"){
+          //Home directory
           const char* home = std::getenv("HOME");
           if(home)
             chdir(home);
@@ -319,8 +320,15 @@ int main(){
            std::cout << "cd: HOME not set" << std::endl;
         }
         else if(!path.empty() && path[0] == '/'){
+          //absolute path
           if(chdir(path.c_str()) != 0){
             std::cout << "cd: " << path << ": No such file or directory" << std::endl;
+          }
+          else{
+            //relative path
+            fs::path target = fs::current_path() / path;
+            if(chdir(target.c_str()) != 0)
+              std::cout << "cd: " << path << "No such file or directory" << std::endl;
           }
         }
       }
