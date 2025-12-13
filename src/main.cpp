@@ -427,69 +427,76 @@ int main(){
     }
 
     if(has_pipe){
-      std::vector<std::string> left_cmd(tokens.begin(), pipe_it);
-      std::vector<std::string> right_cmd(pipe_it + 1, tokens.end());
+      //Split tokens into commands
+      std::vector<std::vector<std::string>> commands;
+      std::vector<std::string> current;
 
-      if(left_cmd.empty() || right_cmd.empty())
+      for(auto &t : tokens){
+        if(t == "|"){
+          commands.push_back(current);
+          current.clear();
+        }
+        else
+          current.push_back(t);
+      }
+      if(!current.empty())
+        commands.push_back(current);
+
+      int n = commands.size();
+      if(n < 2)
         continue;
 
-      int pipefd[2];
-      if(pipe(pipefd) == -1){
-        perror("pipe");
-        continue;
-      }
-
-      pid_t pid1 = fork();
-      if(pid1 == 0){
-        //left command -> stdout to pipe
-        dup2(pipefd[1], STDOUT_FILENO);
-        close(pipefd[0]);
-        close(pipefd[1]);
-
-        std::vector<char*> args;
-        for(auto& s : left_cmd)
-          args.push_back(const_cast<char*>(s.c_str()));
-        args.push_back(nullptr);
-
-        if(is_builtin(left_cmd[0])){
-          run_builtin(left_cmd);
-          exit(0);
+      //Create Pipes
+      std::vector<int> pipes(2 * (n - 1));
+      for(int i = 0; i < n; i++){
+        if(pipe(&pipes[2*i]) < 0){
+          perror("pipe");
+          goto pipeline_cleanup;
         }
-
-        std::string path = find_in_path(left_cmd[0]);
-        execvp(path.c_str(), args.data());
-        perror("execvp");
-        exit(1);
       }
 
-      pid_t pid2 = fork();
-      if(pid2 == 0){
-        //right command -> stdin from pipe
-        dup2(pipefd[0], STDIN_FILENO);
-        close(pipefd[1]);
-        close(pipefd[0]);
+      //Fork for each command
+      for(int i = 0; i < n; i++){
+        pid_t pid = fork();
+        if(pid == 0){
+          //stdin 
+          if(i > 0)
+            dup2(pipes[2*(i-1)], STDIN_FILENO);
 
-        std::vector<char*> args;
-        for(auto& s : right_cmd)
-          args.push_back(const_cast<char*>(s.c_str()));
-        args.push_back(nullptr);
+          //stdout
+          if(i < n - 1)
+            dup2(pipes[2*i + 1], STDOUT_FILENO);
 
-        if(is_builtin(right_cmd[0])){
-          run_builtin(right_cmd);
-          exit(0);
+          //close all pipes
+          for(int fd : pipes)
+            close(fd);
+
+          //run command
+          if(is_builtin(commands[i][0])){
+            run_builtin(commands[i]);
+            exit(0);
+          }
+
+          std::string path = find_in_path(commands[i][0]);
+          std::vector<char*> args;
+          for(auto &s : commands[i])
+            args.push_back(const_cast<char*>(s.c_str()));
+          args.push_back(nullptr);
+
+          execvp(path.c_str(), args.data());
+          perror("execvp");
+          exit(1);
         }
-
-        std::string path = find_in_path(right_cmd[0]);
-        execvp(path.c_str(), args.data());
-        perror("execvp");
-        exit(1);
       }
 
-      //Parent
-      close(pipefd[0]);
-      close(pipefd[1]);
-      waitpid(pid1, nullptr, 0);
-      waitpid(pid2, nullptr, 0);
+    pipeline_cleanup:
+      //Parent close pipes and waits
+      for(int fd : pipes)
+        close(fd);
+
+      for(int i = 0; i < n; i++)
+        wait(nullptr);
+
       continue;
     }
 
@@ -558,6 +565,7 @@ int main(){
       }
       continue;
     }
+
     if(cmd == "cd"){
       if(tokens.size() < 2){
         //No arguments. Do nothing
@@ -659,7 +667,7 @@ int main(){
       continue;
     }
 
-       //Not a builtin -> external command
+   //Not a builtin -> external command
     std::string prog_path;
     if(cmd.rfind("./", 0) == 0 || cmd.rfind("/", 0) == 0)
       prog_path = cmd;
