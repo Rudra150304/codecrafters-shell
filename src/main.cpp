@@ -1,4 +1,6 @@
+#include <algorithm>
 #include <cctype>
+#include <complex>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
@@ -12,6 +14,7 @@
 #include <sstream>
 #include <string>
 #include <strings.h>
+#include <sys/types.h>
 #include <vector>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -326,6 +329,9 @@ int main(){
     //If tokens became empty after removing redirection tokens, skip
     if(tokens.empty())
       continue;
+   
+    auto pipe_it = std::find(tokens.begin(), tokens.end(), "|");
+    bool has_pipe = (pipe_it != tokens.end());
 
     std::string cmd = tokens[0];
 
@@ -550,6 +556,63 @@ int main(){
         close(fd_err_append);
         saved_stderr_append = -1;
       }
+      continue;
+    }
+
+    if(!builtin && has_pipe){
+      std::vector<std::string> left_cmd(tokens.begin(), pipe_it);
+      std::vector<std::string> right_cmd(pipe_it + 1, tokens.end());
+
+      if(left_cmd.empty() || right_cmd.empty())
+        continue;
+
+      int pipefd[2];
+      if(pipe(pipefd) == -1){
+        perror("pipe");
+        continue;
+      }
+
+      pid_t pid1 = fork();
+      if(pid1 == 0){
+        //left command -> stdout to pipe
+        dup2(pipefd[1], STDOUT_FILENO);
+        close(pipefd[0]);
+        close(pipefd[1]);
+
+        std::vector<char*> args;
+        for(auto& s : left_cmd)
+          args.push_back(const_cast<char*>(s.c_str()));
+        args.push_back(nullptr);
+
+        std::string path = find_in_path(left_cmd[0]);
+        execvp(path.c_str(), args.data());
+        perror("execvp");
+        exit(1);
+      }
+
+      pid_t pid2 = fork();
+      if(pid2 == 0){
+        //right command -> stdin from pipe
+        dup2(pipefd[0], STDIN_FILENO);
+        close(pipefd[1]);
+        close(pipefd[0]);
+
+        std::vector<char*> args;
+        for(auto& s : right_cmd)
+          args.push_back(const_cast<char*>(s.c_str()));
+        args.push_back(nullptr);
+
+        std::string path = find_in_path(right_cmd[0]);
+        execvp(path.c_str(), args.data());
+        perror("execvp");
+        exit(1);
+      }
+
+      //Parent
+      close(pipefd[0]);
+      close(pipefd[1]);
+      waitpid(pid1, nullptr, 0);
+      waitpid(pid2, nullptr, 0);
       continue;
     }
 
