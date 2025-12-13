@@ -218,13 +218,13 @@ void run_builtin(const std::vector<std::string>& tokens){
       return;
     const std::string t = tokens[1];
     if(t == "echo" || t == "exit" || t == "pwd" || t == "cd" || t == "type")
-      std::cout << t << "is a shell builtin\n";
+      std::cout << t << " is a shell builtin\n";
     else{
       std::string p = find_in_path(t);
       if(p.empty())
         std::cout << t << ": not found\n";
       else
-        std::cout << t << "is" << p << "\n";
+        std::cout << t << " is " << p << "\n";
     }
   }
 }
