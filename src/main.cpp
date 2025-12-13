@@ -426,6 +426,74 @@ int main(){
       }
     }
 
+    if(has_pipe){
+      std::vector<std::string> left_cmd(tokens.begin(), pipe_it);
+      std::vector<std::string> right_cmd(pipe_it + 1, tokens.end());
+
+      if(left_cmd.empty() || right_cmd.empty())
+        continue;
+
+      int pipefd[2];
+      if(pipe(pipefd) == -1){
+        perror("pipe");
+        continue;
+      }
+
+      pid_t pid1 = fork();
+      if(pid1 == 0){
+        //left command -> stdout to pipe
+        dup2(pipefd[1], STDOUT_FILENO);
+        close(pipefd[0]);
+        close(pipefd[1]);
+
+        std::vector<char*> args;
+        for(auto& s : left_cmd)
+          args.push_back(const_cast<char*>(s.c_str()));
+        args.push_back(nullptr);
+
+        if(is_builtin(left_cmd[0])){
+          run_builtin(left_cmd);
+          exit(0);
+        }
+
+        std::string path = find_in_path(left_cmd[0]);
+        execvp(path.c_str(), args.data());
+        perror("execvp");
+        exit(1);
+      }
+
+      pid_t pid2 = fork();
+      if(pid2 == 0){
+        //right command -> stdin from pipe
+        dup2(pipefd[0], STDIN_FILENO);
+        close(pipefd[1]);
+        close(pipefd[0]);
+
+        std::vector<char*> args;
+        for(auto& s : right_cmd)
+          args.push_back(const_cast<char*>(s.c_str()));
+        args.push_back(nullptr);
+
+        if(is_builtin(right_cmd[0])){
+          run_builtin(right_cmd);
+          exit(0);
+        }
+
+        std::string path = find_in_path(right_cmd[0]);
+        execvp(path.c_str(), args.data());
+        perror("execvp");
+        exit(1);
+      }
+
+      //Parent
+      close(pipefd[0]);
+      close(pipefd[1]);
+      waitpid(pid1, nullptr, 0);
+      waitpid(pid2, nullptr, 0);
+      continue;
+    }
+
+
     //Execute builtins
     if(cmd == "echo"){
       for(size_t i = 1; i < tokens.size(); ++i){
@@ -591,74 +659,7 @@ int main(){
       continue;
     }
 
-    if(has_pipe){
-      std::vector<std::string> left_cmd(tokens.begin(), pipe_it);
-      std::vector<std::string> right_cmd(pipe_it + 1, tokens.end());
-
-      if(left_cmd.empty() || right_cmd.empty())
-        continue;
-
-      int pipefd[2];
-      if(pipe(pipefd) == -1){
-        perror("pipe");
-        continue;
-      }
-
-      pid_t pid1 = fork();
-      if(pid1 == 0){
-        //left command -> stdout to pipe
-        dup2(pipefd[1], STDOUT_FILENO);
-        close(pipefd[0]);
-        close(pipefd[1]);
-
-        std::vector<char*> args;
-        for(auto& s : left_cmd)
-          args.push_back(const_cast<char*>(s.c_str()));
-        args.push_back(nullptr);
-
-        if(is_builtin(left_cmd[0])){
-          run_builtin(left_cmd);
-          exit(0);
-        }
-
-        std::string path = find_in_path(left_cmd[0]);
-        execvp(path.c_str(), args.data());
-        perror("execvp");
-        exit(1);
-      }
-
-      pid_t pid2 = fork();
-      if(pid2 == 0){
-        //right command -> stdin from pipe
-        dup2(pipefd[0], STDIN_FILENO);
-        close(pipefd[1]);
-        close(pipefd[0]);
-
-        std::vector<char*> args;
-        for(auto& s : right_cmd)
-          args.push_back(const_cast<char*>(s.c_str()));
-        args.push_back(nullptr);
-
-        if(is_builtin(right_cmd[0])){
-          run_builtin(right_cmd);
-          exit(0);
-        }
-
-        std::string path = find_in_path(right_cmd[0]);
-        execvp(path.c_str(), args.data());
-        perror("execvp");
-        exit(1);
-      }
-
-      //Parent
-      close(pipefd[0]);
-      close(pipefd[1]);
-      waitpid(pid1, nullptr, 0);
-      waitpid(pid2, nullptr, 0);
-      continue;
-    }
-
-    //Not a builtin -> external command
+       //Not a builtin -> external command
     std::string prog_path;
     if(cmd.rfind("./", 0) == 0 || cmd.rfind("/", 0) == 0)
       prog_path = cmd;
