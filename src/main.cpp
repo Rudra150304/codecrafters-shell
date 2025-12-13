@@ -448,7 +448,7 @@ int main(){
 
       //Create Pipes
       std::vector<int> pipes(2 * (n - 1));
-      for(int i = 0; i < n; i++){
+      for(int i = 0; i < n - 1; i++){
         if(pipe(&pipes[2*i]) < 0){
           perror("pipe");
           goto pipeline_cleanup;
