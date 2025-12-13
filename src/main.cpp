@@ -591,7 +591,7 @@ int main(){
       continue;
     }
 
-    if(!builtin && has_pipe){
+    if(has_pipe){
       std::vector<std::string> left_cmd(tokens.begin(), pipe_it);
       std::vector<std::string> right_cmd(pipe_it + 1, tokens.end());
 
