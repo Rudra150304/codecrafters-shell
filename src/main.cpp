@@ -198,6 +198,38 @@ char** completion_callback(const char* text, int start, int end){
   });
 }
 
+void run_builtin(const std::vector<std::string>& tokens){
+  const std::string& cmd = tokens[0];
+
+  if(cmd == "echo"){
+    for(size_t i = 1; i < tokens.size(); ++i){
+      std::cout << tokens[i];
+      if(i + 1 < tokens.size())
+        std::cout << " ";
+    }
+    std::cout << "\n";
+  }
+
+  else if(cmd == "pwd")
+    std::cout << fs::current_path().string() << "\n";
+
+  else if(cmd == "type"){
+    if(tokens.size() < 2)
+      return;
+    const std::string t = tokens[1];
+    if(t == "echo" || t == "exit" || t == "pwd" || t == "cd" || t == "type")
+      std::cout << t << "is a shell builtin\n";
+    else{
+      std::string p = find_in_path(t);
+      if(p.empty())
+        std::cout << t << ": not found\n";
+      else
+        std::cout << t << "is" << p << "\n";
+    }
+  }
+}
+
+
 int main(){
   std::cout << std::unitbuf;
   std::cerr << std::unitbuf;
@@ -584,6 +616,11 @@ int main(){
           args.push_back(const_cast<char*>(s.c_str()));
         args.push_back(nullptr);
 
+        if(is_builtin(left_cmd[0])){
+          run_builtin(left_cmd);
+          exit(0);
+        }
+
         std::string path = find_in_path(left_cmd[0]);
         execvp(path.c_str(), args.data());
         perror("execvp");
@@ -601,6 +638,11 @@ int main(){
         for(auto& s : right_cmd)
           args.push_back(const_cast<char*>(s.c_str()));
         args.push_back(nullptr);
+
+        if(is_builtin(right_cmd[0])){
+          run_builtin(right_cmd);
+          exit(0);
+        }
 
         std::string path = find_in_path(right_cmd[0]);
         execvp(path.c_str(), args.data());
