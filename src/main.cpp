@@ -528,9 +528,13 @@ int main(){
 
       continue;
     }
+ 
+    if(builtin && !has_pipe){
+      run_builtin(tokens);
+      goto builtin_cleanup;
+    }
 
 
-  
     //restore fds for builtins
     builtin_cleanup:
       if(redirect && saved_stdout != -1){
@@ -558,11 +562,6 @@ int main(){
         saved_stderr_append = -1;
       }
       continue;
-
-    if(builtin && !has_pipe){
-      run_builtin(tokens);
-      goto builtin_cleanup;
-    }
 
     //Not a builtin -> external command
     std::string prog_path;
