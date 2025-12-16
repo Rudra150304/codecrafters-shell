@@ -198,37 +198,66 @@ char** completion_callback(const char* text, int start, int end){
   });
 }
 
-void run_builtin(const std::vector<std::string>& tokens){
-  const std::string& cmd = tokens[0];
+bool run_builtin(const std::vector<std::string>& tokens) {
+    const std::string& cmd = tokens[0];
 
-  if(cmd == "echo"){
-    for(size_t i = 1; i < tokens.size(); ++i){
-      std::cout << tokens[i];
-      if(i + 1 < tokens.size())
-        std::cout << " ";
+    if (cmd == "echo") {
+        for (size_t i = 1; i < tokens.size(); ++i) {
+            std::cout << tokens[i];
+            if (i + 1 < tokens.size()) std::cout << " ";
+        }
+        std::cout << "\n";
+        return true;
     }
-    std::cout << "\n";
-  }
 
-  else if(cmd == "pwd")
-    std::cout << fs::current_path().string() << "\n";
-
-  else if(cmd == "type"){
-    if(tokens.size() < 2)
-      return;
-    const std::string t = tokens[1];
-    if(t == "echo" || t == "exit" || t == "pwd" || t == "cd" || t == "type")
-      std::cout << t << " is a shell builtin\n";
-    else{
-      std::string p = find_in_path(t);
-      if(p.empty())
-        std::cout << t << ": not found\n";
-      else
-        std::cout << t << " is " << p << "\n";
+    if (cmd == "pwd") {
+        std::cout << fs::current_path().string() << "\n";
+        return true;
     }
-  }
+
+    if (cmd == "cd") {
+        if (tokens.size() < 2) return true;
+
+        const std::string& path = tokens[1];
+        if (path == "~") {
+            const char* home = std::getenv("HOME");
+            if (home) chdir(home);
+            else std::cout << "cd: HOME not set\n";
+        } else {
+            if (chdir(path.c_str()) != 0)
+                std::cout << "cd: " << path << ": No such file or directory\n";
+        }
+        return true;
+    }
+
+    if (cmd == "history") {
+        HIST_ENTRY **list = history_list();
+        if (!list) return true;
+
+        for (int i = 0; list[i]; i++)
+            std::cout << " " << i + 1 << " " << list[i]->line << "\n";
+        return true;
+    }
+
+    if (cmd == "type") {
+        if (tokens.size() < 2) return true;
+
+        const std::string& t = tokens[1];
+        if (t == "echo" || t == "exit" || t == "pwd" ||
+            t == "cd" || t == "type" || t == "history") {
+            std::cout << t << " is a shell builtin\n";
+        } else {
+            std::string p = find_in_path(t);
+            if (p.empty())
+                std::cout << t << ": not found\n";
+            else
+                std::cout << t << " is " << p << "\n";
+        }
+        return true;
+    }
+
+    return false;
 }
-
 
 int main(){
   std::cout << std::unitbuf;
@@ -369,7 +398,7 @@ int main(){
 
     //Builtins set
     auto is_builtin = [&](const std::string &c){
-      return c == "echo" || c == "pwd" || c == "cd" || c == "type" || c == "exit";
+      return c == "echo" || c == "pwd" || c == "cd" || c == "type" || c == "exit" || c == "history";
     };
 
     bool builtin = is_builtin(cmd);
@@ -501,12 +530,7 @@ int main(){
     }
 
 
-    //Execute builtins
-    if(cmd == "echo"){
-      for(size_t i = 1; i < tokens.size(); ++i){
-        std::cout << tokens[i] << (i + 1 < tokens.size() ? " " : "\n");
-      }
-
+  
     //restore fds for builtins
     builtin_cleanup:
       if(redirect && saved_stdout != -1){
@@ -534,140 +558,13 @@ int main(){
         saved_stderr_append = -1;
       }
       continue;
+
+    if(builtin && !has_pipe){
+      run_builtin(tokens);
+      goto builtin_cleanup;
     }
 
-    if(cmd == "pwd"){
-      std::cout << fs::current_path().string() << std::endl;
-       //restore fds for builtins
-      if(redirect && saved_stdout != -1){
-        dup2(saved_stdout, STDOUT_FILENO);
-        close(saved_stdout);
-        close(fd_out);
-        saved_stdout = -1;
-      }
-      if(append_redirect && saved_stdout_append != -1){
-        dup2(saved_stdout_append, STDOUT_FILENO);
-        close(saved_stdout_append);
-        close(fd_append);
-        saved_stdout_append = -1;
-      }
-      if(redirect_err && saved_stderr != -1){
-        dup2(saved_stderr, STDERR_FILENO);
-        close(saved_stderr);
-        close(fd_err);
-        saved_stderr = -1;
-      }
-      if(append_redirect_err && saved_stderr_append != -1){
-        dup2(saved_stderr_append, STDERR_FILENO);
-        close(saved_stderr_append);
-        close(fd_err_append);
-        saved_stderr_append = -1;
-      }
-      continue;
-    }
-
-    if(cmd == "cd"){
-      if(tokens.size() < 2){
-        //No arguments. Do nothing
-      }
-      else{
-        const std::string &path = tokens[1];
-        if(path == "~"){
-          //Home directory
-          const char* home = std::getenv("HOME");
-          if(home)
-            chdir(home);
-          else
-           std::cout << "cd: HOME not set" << std::endl;
-        }
-        else if(!path.empty() && path[0] == '/'){
-          //absolute path
-          if(chdir(path.c_str()) != 0)
-            std::cout << "cd: " << path << ": No such file or directory" << std::endl;
-        }
-        else{
-          //relative path
-          fs::path target = fs::current_path() / path;
-          if(chdir(target.c_str()) != 0)
-            std::cout << "cd: " << path << ": No such file or directory" << std::endl;
-        }
-      }
-
-       //restore fds for builtins
-      if(redirect && saved_stdout != -1){
-        dup2(saved_stdout, STDOUT_FILENO);
-        close(saved_stdout);
-        close(fd_out);
-        saved_stdout = -1;
-      }
-      if(append_redirect && saved_stdout_append != -1){
-        dup2(saved_stdout_append, STDOUT_FILENO);
-        close(saved_stdout_append);
-        close(fd_append);
-        saved_stdout_append = -1;
-      }
-      if(redirect_err && saved_stderr != -1){
-        dup2(saved_stderr, STDERR_FILENO);
-        close(saved_stderr);
-        close(fd_err);
-        saved_stderr = -1;
-      }
-      if(append_redirect_err && saved_stderr_append != -1){
-        dup2(saved_stderr_append, STDERR_FILENO);
-        close(saved_stderr_append);
-        close(fd_err_append);
-        saved_stderr_append = -1;
-      }
-      continue;
-    }
-
-    if(cmd == "type"){
-      if(tokens.size() < 2){
-        //nothing
-      }
-      else{
-        std::string rest = tokens[1];
-        if(rest == "echo" || rest == "exit" || rest == "type" || rest == "pwd" || rest == "cd"){
-          std::cout << rest << " is a shell builtin" << std::endl;
-        }
-        else{
-          std::string pt = find_in_path(rest);
-          if(pt.empty())
-            std::cout << rest << ": not found" << std::endl;
-          else
-           std::cout << rest << " is " << pt <<std::endl;
-        }
-      }
-
-       //restore fds for builtins
-      if(redirect && saved_stdout != -1){
-        dup2(saved_stdout, STDOUT_FILENO);
-        close(saved_stdout);
-        close(fd_out);
-        saved_stdout = -1;
-      }
-      if(append_redirect && saved_stdout_append != -1){
-        dup2(saved_stdout_append, STDOUT_FILENO);
-        close(saved_stdout_append);
-        close(fd_append);
-        saved_stdout_append = -1;
-      }
-      if(redirect_err && saved_stderr != -1){
-        dup2(saved_stderr, STDERR_FILENO);
-        close(saved_stderr);
-        close(fd_err);
-        saved_stderr = -1;
-      }
-      if(append_redirect_err && saved_stderr_append != -1){
-        dup2(saved_stderr_append, STDERR_FILENO);
-        close(saved_stderr_append);
-        close(fd_err_append);
-        saved_stderr_append = -1;
-      }
-      continue;
-    }
-
-   //Not a builtin -> external command
+    //Not a builtin -> external command
     std::string prog_path;
     if(cmd.rfind("./", 0) == 0 || cmd.rfind("/", 0) == 0)
       prog_path = cmd;
