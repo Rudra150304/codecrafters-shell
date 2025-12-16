@@ -445,7 +445,7 @@ int main(){
 
       //stderr overwrite
       if(append_redirect_err){
-        fd_err_append = open(appenderrfile.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0666);
+        fd_err_append = open(appenderrfile.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if(fd_err_append < 0){
           perror("open");
           goto builtin_cleanup;
