@@ -214,6 +214,14 @@ void run_builtin(const std::vector<std::string>& tokens){
     std::cout << fs::current_path().string() << "\n";
 
   else if(cmd == "history"){
+    //history -r <file>
+    if(tokens.size() == 3 && tokens[1] == "-r"){
+      if(read_history(tokens[2].c_str()) != 0)
+        perror("history");
+      return;
+    }
+
+    //Normal history
     HIST_ENTRY **list = history_list();
     if(!list)
       return;
@@ -589,6 +597,14 @@ int main(){
     }
 
     if(cmd == "history"){
+      //history -r <file>
+      if(tokens.size() == 3 && tokens[1] == "-r"){
+        if(read_history(tokens[2].c_str()) != 0)
+          perror("history");
+        continue;
+      }
+
+      //normal history
       HIST_ENTRY **list = history_list();
       if(!list)
         continue;
