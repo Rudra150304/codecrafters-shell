@@ -198,66 +198,47 @@ char** completion_callback(const char* text, int start, int end){
   });
 }
 
-bool run_builtin(const std::vector<std::string>& tokens) {
-    const std::string& cmd = tokens[0];
+void run_builtin(const std::vector<std::string>& tokens){
+  const std::string& cmd = tokens[0];
 
-    if (cmd == "echo") {
-        for (size_t i = 1; i < tokens.size(); ++i) {
-            std::cout << tokens[i];
-            if (i + 1 < tokens.size()) std::cout << " ";
-        }
-        std::cout << "\n";
-        return true;
+  if(cmd == "echo"){
+    for(size_t i = 1; i < tokens.size(); ++i){
+      std::cout << tokens[i];
+      if(i + 1 < tokens.size())
+        std::cout << " ";
     }
+    std::cout << "\n";
+  }
 
-    if (cmd == "pwd") {
-        std::cout << fs::current_path().string() << "\n";
-        return true;
+  else if(cmd == "pwd")
+    std::cout << fs::current_path().string() << "\n";
+
+  else if(cmd == "history"){
+    HIST_ENTRY **list = history_list();
+    if(!list)
+      return;
+
+    for(int i = 0; list[i]; i++){
+      std::cout << " " << i + 1 << " " << list[i] -> line << "\n";
     }
+  }
 
-    if (cmd == "cd") {
-        if (tokens.size() < 2) return true;
-
-        const std::string& path = tokens[1];
-        if (path == "~") {
-            const char* home = std::getenv("HOME");
-            if (home) chdir(home);
-            else std::cout << "cd: HOME not set\n";
-        } else {
-            if (chdir(path.c_str()) != 0)
-                std::cout << "cd: " << path << ": No such file or directory\n";
-        }
-        return true;
+  else if(cmd == "type"){
+    if(tokens.size() < 2)
+      return;
+    const std::string t = tokens[1];
+    if(t == "echo" || t == "exit" || t == "pwd" || t == "cd" || t == "type" || t == "history")
+      std::cout << t << " is a shell builtin\n";
+    else{
+      std::string p = find_in_path(t);
+      if(p.empty())
+        std::cout << t << ": not found\n";
+      else
+        std::cout << t << " is " << p << "\n";
     }
-
-    if (cmd == "history") {
-        HIST_ENTRY **list = history_list();
-        if (!list) return true;
-
-        for (int i = 0; list[i]; i++)
-            std::cout << " " << i + 1 << " " << list[i]->line << "\n";
-        return true;
-    }
-
-    if (cmd == "type") {
-        if (tokens.size() < 2) return true;
-
-        const std::string& t = tokens[1];
-        if (t == "echo" || t == "exit" || t == "pwd" ||
-            t == "cd" || t == "type" || t == "history") {
-            std::cout << t << " is a shell builtin\n";
-        } else {
-            std::string p = find_in_path(t);
-            if (p.empty())
-                std::cout << t << ": not found\n";
-            else
-                std::cout << t << " is " << p << "\n";
-        }
-        return true;
-    }
-
-    return false;
+  }
 }
+
 
 int main(){
   std::cout << std::unitbuf;
@@ -445,7 +426,7 @@ int main(){
 
       //stderr overwrite
       if(append_redirect_err){
-        fd_err_append = open(appenderrfile.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        fd_err_append = open(appenderrfile.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0666);
         if(fd_err_append < 0){
           perror("open");
           goto builtin_cleanup;
@@ -528,12 +509,13 @@ int main(){
 
       continue;
     }
- 
-    if(builtin && !has_pipe){
-      run_builtin(tokens);
-      goto builtin_cleanup;
-    }
 
+
+    //Execute builtins
+    if(cmd == "echo"){
+      for(size_t i = 1; i < tokens.size(); ++i){
+        std::cout << tokens[i] << (i + 1 < tokens.size() ? " " : "\n");
+      }
 
     //restore fds for builtins
     builtin_cleanup:
@@ -562,8 +544,73 @@ int main(){
         saved_stderr_append = -1;
       }
       continue;
+    }
 
-    //Not a builtin -> external command
+    if(cmd == "pwd"){
+      std::cout << fs::current_path().string() << std::endl;
+      goto builtin_cleanup;
+    }
+
+    if(cmd == "cd"){
+      if(tokens.size() < 2){
+        //No arguments. Do nothing
+      }
+      else{
+        const std::string &path = tokens[1];
+        if(path == "~"){
+          //Home directory
+          const char* home = std::getenv("HOME");
+          if(home)
+            chdir(home);
+          else
+           std::cout << "cd: HOME not set" << std::endl;
+        }
+        else if(!path.empty() && path[0] == '/'){
+          //absolute path
+          if(chdir(path.c_str()) != 0)
+            std::cout << "cd: " << path << ": No such file or directory" << std::endl;
+        }
+        else{
+          //relative path
+          fs::path target = fs::current_path() / path;
+          if(chdir(target.c_str()) != 0)
+            std::cout << "cd: " << path << ": No such file or directory" << std::endl;
+        }
+      }
+      goto builtin_cleanup;
+    }
+
+    if(cmd == "history"){
+      HIST_ENTRY **list = history_list();
+      if(!list);
+
+      for(int i = 0; list[i]; i++){
+        std::cout << " " << i + 1 << " " << list[i] -> line << "\n";
+      }
+      goto builtin_cleanup;
+    }
+
+    if(cmd == "type"){
+      if(tokens.size() < 2){
+        //nothing
+      }
+      else{
+        std::string rest = tokens[1];
+        if(rest == "echo" || rest == "exit" || rest == "type" || rest == "pwd" || rest == "cd" || rest == "history"){
+          std::cout << rest << " is a shell builtin" << std::endl;
+        }
+        else{
+          std::string pt = find_in_path(rest);
+          if(pt.empty())
+            std::cout << rest << ": not found" << std::endl;
+          else
+           std::cout << rest << " is " << pt <<std::endl;
+        }
+      }
+      goto builtin_cleanup;
+    }
+
+   //Not a builtin -> external command
     std::string prog_path;
     if(cmd.rfind("./", 0) == 0 || cmd.rfind("/", 0) == 0)
       prog_path = cmd;
@@ -598,7 +645,7 @@ int main(){
         close(fd2);
       }
       if(redirect_err){
-        int fd2 = open(errfile.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        int fd2 = open(errfile.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0666);
         if(fd2 < 0){
           perror("open");
           exit(1);
