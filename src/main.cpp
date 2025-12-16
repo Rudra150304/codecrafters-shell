@@ -598,7 +598,7 @@ int main(){
         close(fd2);
       }
       if(redirect_err){
-        int fd2 = open(errfile.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0666);
+        int fd2 = open(errfile.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if(fd2 < 0){
           perror("open");
           exit(1);
