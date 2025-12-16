@@ -218,7 +218,15 @@ void run_builtin(const std::vector<std::string>& tokens){
     if(!list)
       return;
 
-    for(int i = 0; list[i]; i++){
+    int total = history_length;
+
+    int n = total;
+    if(tokens.size() == 2)
+      n = std::stoi(tokens[1]);
+
+    int start = std::max(0, total - n);
+
+    for(int i = start; i < total; i++){
       std::cout << " " << i + 1 << " " << list[i] -> line << "\n";
     }
   }
@@ -582,9 +590,18 @@ int main(){
 
     if(cmd == "history"){
       HIST_ENTRY **list = history_list();
-      if(!list);
+      if(!list)
+        continue;
 
-      for(int i = 0; list[i]; i++){
+      int total = history_length;
+
+      int n = total;
+      if(tokens.size() == 2)
+        n = std::stoi(tokens[1]);
+
+      int start = std::max(0, total - n);
+
+      for(int i = start; i < total; i++){
         std::cout << " " << i + 1 << " " << list[i] -> line << "\n";
       }
       goto builtin_cleanup;
