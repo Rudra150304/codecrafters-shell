@@ -22,6 +22,7 @@
 #include <readline/history.h>
 
 namespace fs = std::filesystem;
+static int history_written = 0;
 
 //Find executable in PATH
 std::string find_in_path(const std::string& cmd){
@@ -214,6 +215,20 @@ void run_builtin(const std::vector<std::string>& tokens){
     std::cout << fs::current_path().string() << "\n";
 
   else if(cmd == "history"){
+    int total = history_length;
+
+    //history -a <file>
+    if(tokens.size() == 3 && tokens[1] == "-a"){
+      int new_entries = total - history_written;
+
+      if(new_entries > 0){
+        if(append_history(new_entries, tokens[2].c_str()) != 0)
+          perror("history");
+        history_written = total;
+      }
+      return;
+    }
+
     //history -w <file>
     if(tokens.size() == 3 && tokens[1] == "-w"){
       if(write_history(tokens[2].c_str()) != 0)
@@ -232,8 +247,6 @@ void run_builtin(const std::vector<std::string>& tokens){
     HIST_ENTRY **list = history_list();
     if(!list)
       return;
-
-    int total = history_length;
 
     int n = total;
     if(tokens.size() == 2)
@@ -604,6 +617,19 @@ int main(){
     }
 
     if(cmd == "history"){
+      int total = history_length;
+
+      //history -a <file>
+      if(tokens.size() == 3 && tokens[1] == "-a"){
+        int new_entries = total - history_written;
+
+        if(new_entries > 0){
+          if(append_history(new_entries, tokens[2].c_str()) != 0)
+            perror("history");
+          history_written = total;
+        }
+        continue;
+      }
       //history -w <file>
       if(tokens.size() == 3 && tokens[1] == "-w"){
         if(write_history(tokens[2].c_str()) != 0)
@@ -622,7 +648,6 @@ int main(){
       if(!list)
         continue;
 
-      int total = history_length;
 
       int n = total;
       if(tokens.size() == 2)
