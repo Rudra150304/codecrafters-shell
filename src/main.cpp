@@ -283,10 +283,12 @@ int main(){
   rl_attempted_completion_function = completion_callback;
   rl_bind_key('\t', rl_complete);
 
-  //Load history
+  //Load history and read it's initial length 
+  int initial_history_len = 0;
   const char* histfile = std::getenv("HISTFILE");
   if(histfile){
     read_history(histfile);
+    initial_history_len = history_length;
   }
 
   std::string command;
@@ -309,8 +311,12 @@ int main(){
     //exit builtin
     if(command == "exit" || command == "exit 0"){
       const char* histfile = std::getenv("HISTFILE");
-      if(histfile)
-        write_history(histfile);
+      if(histfile){
+        int new_entries = history_length - initial_history_len;
+        if(new_entries > 0){
+          append_history(new_entries, histfile);
+        }
+      }
       return 0;
     }
 
