@@ -308,6 +308,9 @@ int main(){
 
     //exit builtin
     if(command == "exit" || command == "exit 0"){
+      const char* histfile = std::getenv("HISTFILE");
+      if(histfile)
+        write_history(histfile);
       return 0;
     }
 
