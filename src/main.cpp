@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <cctype>
-#include <complex>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
@@ -9,8 +8,6 @@
 #include <filesystem>
 #include <ios>
 #include <iostream>
-#include <iterator>
-#include <optional>
 #include <sstream>
 #include <string>
 #include <strings.h>
