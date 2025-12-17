@@ -283,6 +283,12 @@ int main(){
   rl_attempted_completion_function = completion_callback;
   rl_bind_key('\t', rl_complete);
 
+  //Load history
+  const char* histfile = std::getenv("HISTFILE");
+  if(histfile){
+    read_history(histfile);
+  }
+
   std::string command;
   while (true){
     char* input = readline("$ ");
